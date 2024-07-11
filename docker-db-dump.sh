@@ -210,10 +210,10 @@ docker_dump_db() {
         debug "detected mariadb-dump"
 
         if contains "$env_vars", "MYSQL_ROOT_PASSWORD"; then
-            docker exec "$1" sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases' || return $?
+            docker exec "$1" sh -c 'mariadb-dump -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases' || return $?
 
         elif contains "$env_vars", "MARIADB_ROOT_PASSWORD"; then
-            docker exec "$1" sh -c 'mysqldump -uroot -p"$MARIADB_ROOT_PASSWORD" --all-databases' || return $?
+            docker exec "$1" sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --all-databases' || return $?
 
         else
             err "mariadb without MARIADB_ROOT_PASSWORD env var is not supported"
