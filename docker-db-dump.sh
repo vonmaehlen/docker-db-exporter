@@ -33,6 +33,8 @@ containers="shop-next-database"
 ignored_containers="shop-next-web
 traefik
 "
+# number of dumps to keep per container
+keep=4
 
 main() {
     info "Backup Directory: $backup_dir"
@@ -50,6 +52,20 @@ main() {
             err "Backup [$(dcon_name "$con_id")] failed"
             rm  "$backup_file.part"
         fi
+
+        if [ -n "${keep:-}" ]; then
+            old_backups=$(find "${backup_dir:-.}/$con_name/" -type f | sort | head -n -"${keep:-64}")
+            for old_file in $old_backups; do
+                debug "Prune $(basename "$old_file")"
+                rm "$old_file"
+            done
+        fi
+
+        old_backup_dirs=$(find "${backup_dir:-.}/$con_name/" -type d -empty)
+        for old_dir in $old_backup_dirs; do
+            debug "Prune $old_dir"
+            rmdir "$old_dir"
+        done
 
     done
 }
