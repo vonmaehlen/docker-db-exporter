@@ -46,7 +46,20 @@ main() {
         backup_file="${backup_dir:-.}/$con_name/$(date -Idate)/$con_name-$(date -Iseconds).sql"
         mkdir -p "$(dirname "$backup_file")"
 
-        if docker_dump_db "$con_id" > "$backup_file.part"; then
+        if cmd_exists "xz"; then
+            compressor="xz"
+            backup_file="$backup_file.xz"
+        elif cmd_exists "gzip"; then
+            compressor="gzip"
+            backup_file="$backup_file.gz"
+        elif cmd_exists "zip"; then
+            compressor="zip"
+            backup_file="$backup_file.zip"
+        else
+            compressor="cat"
+        fi
+
+        if docker_dump_db "$con_id" | $compressor > "$backup_file.part"; then
             mv "$backup_file.part" "$backup_file"
         else
             err "Backup [$(dcon_name "$con_id")] failed"
@@ -93,6 +106,11 @@ warn() {
 contains() {
     # if echo $ignored_containers | grep -q "$con_name"; then continue; fi
     test "${1#*"$2"}" != "$1"
+    return $?
+}
+
+cmd_exists() {
+    command -v "$1" >/dev/null 2>&1
     return $?
 }
 
