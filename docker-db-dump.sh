@@ -92,6 +92,8 @@ main() {
         done
 
     done
+
+    info "All backups completed"
 }
 
 log() {
@@ -99,7 +101,7 @@ log() {
 }
 
 debug() {
-    [ -n "${VERBOSE:-}" ] && log "DEBUG:" "$@"
+    if [ -n "${VERBOSE:-}" ]; then log "DEBUG:" "$@"; fi
 }
 
 info() {
