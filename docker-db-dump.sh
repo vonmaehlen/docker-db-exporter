@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+set -eu
+
 backup_dir="$(pwd)/_db_backups"
 
 # list of containers, that must be backed up. One name per line.
@@ -35,7 +37,20 @@ traefik
 main() {
     info "Backup Directory: $backup_dir"
     for con_id in $(docker_database_container_ids); do
-        info "Backup $(dcon_name "$con_id") begins"
+        con_name=$(dcon_name "$con_id")
+
+        info "Backup [$con_name] begins"
+
+        backup_file="${backup_dir:-.}/$con_name/$(date -Idate)/$con_name-$(date -Iseconds).sql"
+        mkdir -p "$(dirname "$backup_file")"
+
+        if docker_dump_db "$con_id" > "$backup_file.part"; then
+            mv "$backup_file.part" "$backup_file"
+        else
+            err "Backup [$(dcon_name "$con_id")] failed"
+            rm  "$backup_file.part"
+        fi
+
     done
 }
 
@@ -62,6 +77,11 @@ warn() {
 contains() {
     # if echo $ignored_containers | grep -q "$con_name"; then continue; fi
     test "${1#*"$2"}" != "$1"
+    return $?
+}
+
+dcon_has_cmd() {
+    docker exec "$1" command -v "$2" >/dev/null 2>&1
     return $?
 }
 
@@ -134,6 +154,40 @@ docker_database_container_ids() {
         debug "$con_name found"
         docker inspect --format "{{ .ID }}" "$con_name"
     done
+}
+
+docker_dump_db() {
+    env_vars=$(docker exec -t "$1" env)
+
+    if dcon_has_cmd "$1" "mariadb-dump"; then
+        debug "detected mariadb-dump"
+
+        if contains "$env_vars", "MYSQL_ROOT_PASSWORD"; then
+            docker exec "$1" sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases' || return $?
+
+        elif contains "$env_vars", "MARIADB_ROOT_PASSWORD"; then
+            docker exec "$1" sh -c 'mysqldump -uroot -p"$MARIADB_ROOT_PASSWORD" --all-databases' || return $?
+
+        else
+            err "mariadb without MARIADB_ROOT_PASSWORD env var is not supported"
+            return 1
+        fi
+
+    elif dcon_has_cmd "$1" "mysqldump"; then
+        debug "detected mysqldump"
+
+        if contains "$env_vars", "MYSQL_ROOT_PASSWORD"; then
+            docker exec "$1" sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases' || return $?
+
+        else
+            err "mysql without MYSQL_ROOT_PASSWORD env var is not supported"
+            return 1
+        fi
+
+    else
+        err "Failed to determine database type or container has no supported dump utility!"
+        return 1
+    fi
 }
 
 main
