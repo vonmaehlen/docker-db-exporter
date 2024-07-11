@@ -39,9 +39,6 @@ keep=4
 main() {
     info "Backup Directory: $backup_dir"
 
-    # prune partial backup files
-    find "${backup_dir:-.}/" -type f -name '*.part' -delete
-
     for con_id in $(docker_database_container_ids); do
         con_name=$(dcon_name "$con_id")
 
@@ -80,6 +77,9 @@ main() {
             rm "$backup_file.part"
             rm "$backup_pipe";
         fi
+
+        # prune partial backup files
+        find "${backup_dir:-.}/" -type f -name '*.part' -delete
 
         if [ -n "${keep:-}" ]; then
             old_backups=$(find "${backup_dir:-.}/$con_name/" -type f -not -name "*.part" | sort | head -n -"${keep:-64}")
