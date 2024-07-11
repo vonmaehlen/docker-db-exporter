@@ -128,7 +128,7 @@ cmd_exists() {
 }
 
 dcon_has_cmd() {
-    docker exec "$1" command -v "$2" >/dev/null 2>&1
+    docker exec "$1" "$2" --help >/dev/null 2>&1
     return $?
 }
 
@@ -230,6 +230,9 @@ docker_dump_db() {
             err "mysql without MYSQL_ROOT_PASSWORD env var is not supported"
             return 1
         fi
+
+    elif dcon_has_cmd "$1" "pg_dumpall"; then
+        docker exec "$1" sh -c 'pg_dumpall -U "$POSTGRES_USER"' || return $?
 
     else
         err "Failed to determine database type or container has no supported dump utility!"
