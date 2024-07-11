@@ -38,6 +38,10 @@ keep=4
 
 main() {
     info "Backup Directory: $backup_dir"
+
+    # prune partial backup files
+    find "${backup_dir:-.}/" -type f -name '*.part' -delete
+
     for con_id in $(docker_database_container_ids); do
         con_name=$(dcon_name "$con_id")
 
