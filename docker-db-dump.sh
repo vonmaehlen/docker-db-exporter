@@ -44,6 +44,7 @@ main() {
         info "Backup [$con_name] begins"
 
         backup_file="${backup_dir:-.}/$con_name/$(date -Idate)/$con_name-$(date -Iseconds).sql"
+        backup_pipe="/tmp/$(basename "$backup_file")"
         mkdir -p "$(dirname "$backup_file")"
 
         if cmd_exists "xz"; then
@@ -59,11 +60,21 @@ main() {
             compressor="cat"
         fi
 
-        if docker_dump_db "$con_id" | $compressor > "$backup_file.part"; then
+        # use a named pipe so we can check if the command was successfull
+        # before writing anything to a file. To do so, we have to spawn a
+        # process to read from the pipe, so writing to is is not blocking AND
+        # we can check it's exit code with $?.
+        rm "$backup_pipe" >/dev/null 2>&1 || true; mkfifo "$backup_pipe"
+        $compressor < "$backup_pipe"> "$backup_file.part" &
+
+        if docker_dump_db "$con_id" > "$backup_pipe"; then
+            debug "Create file $(basename "$backup_file")"
             mv "$backup_file.part" "$backup_file"
+            rm "$backup_pipe";
         else
             err "Backup [$(dcon_name "$con_id")] failed"
-            rm  "$backup_file.part"
+            rm "$backup_file.part"
+            rm "$backup_pipe";
         fi
 
         if [ -n "${keep:-}" ]; then
