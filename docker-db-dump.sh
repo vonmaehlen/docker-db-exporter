@@ -82,7 +82,7 @@ main() {
         fi
 
         if [ -n "${keep:-}" ]; then
-            old_backups=$(find "${backup_dir:-.}/$con_name/" -type f | sort | head -n -"${keep:-64}")
+            old_backups=$(find "${backup_dir:-.}/$con_name/" -type f -not -name "*.part" | sort | head -n -"${keep:-64}")
             for old_file in $old_backups; do
                 debug "Prune $(basename "$old_file")"
                 rm "$old_file"
