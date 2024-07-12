@@ -34,6 +34,9 @@ Usage: $(basename "$0") [flags]
   -s, --skip <name>         Do not warn that the container is not backed up.
   -d, --backup-dir <path>   Directory to store backups. Default: ./_db_backups
   -n, --keep <count>        Number of backups to keep per container. Default: 4
+      --ping <url>          Send a heartbeat after the command ran.
+      --ping-error <url>    Send a heartbeat if the command (partially) failed.
+      --ping-success <url>  Send a heartbeat if the command succeeded.
   -h, --help                Print this help message and exit.
   -v, --verbose             Increase logging.
 EOF
@@ -43,6 +46,8 @@ main() {
     exit_code=0
     backup_dir="$(pwd)/_db_backups"
     keep=4
+    pings_failure=""
+    pings_success=""
 
     # parse flags in front of positional args
     while printf "%s" "${1:-}" | grep -q ^-; do
@@ -51,6 +56,9 @@ main() {
             -d|--backup-dir) backup_dir=$2; shift; shift;;
             -h|--help|"-?") show_help; exit 0;;
             -n|--keep) keep=$2; shift; shift;;
+            --ping) pings_success="$pings_success $2"; pings_failure="$pings_failure $2"; shift; shift;;
+            --ping-error) pings_failure="$pings_failure $2"; shift; shift;;
+            --ping-success) pings_success="$pings_success $2"; shift; shift;;
             -s|--skip) ignored_containers="$ignored_containers $2 "; shift; shift;;
             -v|-vv|-vvv|--verbose) VERBOSE=1; shift;;
             *) err "invalid option: $1"; show_help; exit 127;;
@@ -131,6 +139,20 @@ main() {
         done
 
     done
+
+    if [ $exit_code -eq 0 ]; then
+        pings="$pings_success"
+    else
+        pings="$pings_failure"
+    fi
+
+    if [ -n "$pings" ]; then
+        if ! send_heartbeats "$pings"; then
+            if [ $exit_code -eq 0 ]; then
+                exit_code=120
+            fi
+        fi
+    fi
 
     info "All backups completed"
     exit $exit_code
@@ -284,6 +306,28 @@ docker_dump_db() {
         err "Failed to determine database type or container has no supported dump utility!"
         return 1
     fi
+}
+
+send_heartbeats() {
+    if cmd_exists "curl"; then
+        heartbeat_cmd="curl"
+    elif cmd_exists "wget"; then
+        heartbeat_cmd="wget"
+    else
+        err "One of curl or wget must be installed to send pings"
+        return 1
+    fi
+
+    err=0
+    for ping in "$@"; do
+        debug "ping: $ping"
+        if ! $heartbeat_cmd "$ping"; then
+            err=1
+            err "Failed to send ping: $ping"
+        fi
+    done
+
+    return $err
 }
 
 main "$@"
