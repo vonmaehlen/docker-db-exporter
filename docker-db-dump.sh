@@ -148,6 +148,7 @@ main() {
 
     if [ -n "$pings" ]; then
         if ! send_heartbeats "$pings"; then
+            err "Failed to send ping"
             if [ $exit_code -eq 0 ]; then
                 exit_code=120
             fi
@@ -315,7 +316,7 @@ docker_dump_db() {
 
 send_heartbeats() {
     if cmd_exists "curl"; then
-        heartbeat_cmd="curl"
+        heartbeat_cmd="curl --silent --show-error --location"
     elif cmd_exists "wget"; then
         heartbeat_cmd="wget"
     else
@@ -323,16 +324,7 @@ send_heartbeats() {
         return 1
     fi
 
-    err=0
-    for ping in "$@"; do
-        debug "ping: $ping"
-        if ! $heartbeat_cmd "$ping"; then
-            err=1
-            err "Failed to send ping: $ping"
-        fi
-    done
-
-    return $err
+    echo "$@" | xargs --no-run-if-empty $heartbeat_cmd >/dev/null || return $?
 }
 
 main "$@"
