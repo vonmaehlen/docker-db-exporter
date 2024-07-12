@@ -48,7 +48,10 @@ main() {
         backup_pipe="/tmp/$(basename "$backup_file")"
         mkdir -p "$(dirname "$backup_file")"
 
-        if cmd_exists "gzip"; then
+        if cmd_exists "zstd"; then
+            compressor="zstd"
+            backup_file="$backup_file.zst"
+        elif cmd_exists "gzip"; then
             compressor="gzip"
             backup_file="$backup_file.gz"
         elif cmd_exists "zip"; then
