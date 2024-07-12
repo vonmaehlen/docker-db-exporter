@@ -62,6 +62,13 @@ main() {
     debug "containers: $containers"
     debug "ignored: $ignored_containers"
 
+    if [ -z "$containers" ]; then
+        show_help >&2
+        echo >&2
+        err "No containers selected."
+        exit 127
+    fi
+
     if ! con_ids=$(docker_database_container_ids); then
         exit_code=2
     fi
