@@ -47,11 +47,11 @@ main() {
     # parse flags in front of positional args
     while printf "%s" "${1:-}" | grep -q ^-; do
         case "$1" in
-            -c|--container) containers="$containers $2"; shift; shift;;
+            -c|--container) containers="$containers $2 "; shift; shift;;
             -d|--backup-dir) backup_dir=$2; shift; shift;;
             -h|--help|"-?") show_help; exit 0;;
             -n|--keep) keep=$2; shift; shift;;
-            -s|--skip) ignored_containers="$ignored_containers $2"; shift; shift;;
+            -s|--skip) ignored_containers="$ignored_containers $2 "; shift; shift;;
             -v|-vv|-vvv|--verbose) VERBOSE=1; shift;;
             *) err "invalid option: $1"; show_help; exit 127;;
         esac
@@ -195,13 +195,13 @@ docker_database_container_ids() {
         esac
 
         # must not be ignored
-        contains "$ignored_containers" "$con_name" && {
+        contains "$ignored_containers" " $con_name " && {
             debug "$con_name is ignored. Skipping."
             continue
         }
 
         # should be allowed
-        contains "$containers" "$con_name" || {
+        contains "$containers" " $con_name " || {
             warn "$con_name is not configured. Skipping."
             error_count=$((error_count + 1))
             continue
