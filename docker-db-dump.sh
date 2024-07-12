@@ -37,9 +37,15 @@ traefik
 keep=4
 
 main() {
+    exit_code=0
+
     info "Backup Directory: $backup_dir"
 
-    for con_id in $(docker_database_container_ids); do
+    if ! con_ids=$(docker_database_container_ids); then
+        exit_code=2
+    fi
+
+    for con_id in $con_ids; do
         con_name=$(dcon_name "$con_id")
 
         info "Backup [$con_name] begins"
@@ -73,6 +79,7 @@ main() {
             mv "$backup_file.part" "$backup_file"
             rm "$backup_pipe";
         else
+            exit_code=1
             err "Backup [$(dcon_name "$con_id")] failed"
             rm "$backup_file.part"
             rm "$backup_pipe";
@@ -98,6 +105,7 @@ main() {
     done
 
     info "All backups completed"
+    exit $exit_code
 }
 
 log() {
@@ -150,6 +158,7 @@ dcon_status() {
 
 docker_database_container_ids() {
     matches=""
+    error_count=0
 
     for con_id in $(docker ps -q --all); do
         con_name=$(dcon_name "$con_id")
@@ -185,6 +194,7 @@ docker_database_container_ids() {
     for con_name in $containers; do
         contains "$matches" "$con_name" || {
             err "$con_name not found"
+            error_count=$((error_count + 1))
         }
     done
 
@@ -197,7 +207,8 @@ docker_database_container_ids() {
                 true
                 ;;
             "stopped"|"exited"|*)
-                warn "$con_name is $con_status. Skipping backup."
+                err "$con_name is $con_status. Skipping backup."
+                error_count=$((error_count + 1))
                 continue
                 ;;
         esac
@@ -205,6 +216,8 @@ docker_database_container_ids() {
         debug "$con_name found"
         docker inspect --format "{{ .ID }}" "$con_name"
     done
+
+    return $error_count
 }
 
 docker_dump_db() {
