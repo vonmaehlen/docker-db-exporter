@@ -24,22 +24,43 @@
 
 set -eu
 
-backup_dir="$(pwd)/_db_backups"
+containers=""
+ignored_containers=""
 
-# list of containers, that must be backed up. One name per line.
-containers="shop-next-database"
-
-# list of containers, that should not be backed up. One name per line.
-ignored_containers="shop-next-web
-traefik
-"
-# number of dumps to keep per container
-keep=4
+show_help() {
+    cat <<EOF
+Usage: $(basename "$0") [flags]
+  -c, --container <name>    Add container to the list of backup-tasks.
+  -s, --skip <name>         Do not warn that the container is not backed up.
+  -d, --backup-dir <path>   Directory to store backups. Default: ./_db_backups
+  -n, --keep <count>        Number of backups to keep per container. Default: 4
+  -h, --help                Print this help message and exit.
+  -v, --verbose             Increase logging.
+EOF
+}
 
 main() {
     exit_code=0
+    backup_dir="$(pwd)/_db_backups"
+    keep=4
+
+    # parse flags in front of positional args
+    while printf "%s" "${1:-}" | grep -q ^-; do
+        case "$1" in
+            -c|--container) containers="$containers $2"; shift; shift;;
+            -d|--backup-dir) backup_dir=$2; shift; shift;;
+            -h|--help|"-?") show_help; exit 0;;
+            -n|--keep) keep=$2; shift; shift;;
+            -s|--skip) ignored_containers="$ignored_containers $2"; shift; shift;;
+            -v|-vv|-vvv|--verbose) VERBOSE=1; shift;;
+            *) err "invalid option: $1"; show_help; exit 127;;
+        esac
+    done
 
     info "Backup Directory: $backup_dir"
+    debug "keep backups per container: $keep"
+    debug "containers: $containers"
+    debug "ignored: $ignored_containers"
 
     if ! con_ids=$(docker_database_container_ids); then
         exit_code=2
@@ -257,4 +278,4 @@ docker_dump_db() {
     fi
 }
 
-main
+main "$@"
