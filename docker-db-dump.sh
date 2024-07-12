@@ -203,6 +203,7 @@ docker_database_container_ids() {
         # should be allowed
         contains "$containers" "$con_name" || {
             warn "$con_name is not configured. Skipping."
+            error_count=$((error_count + 1))
             continue
         }
 
