@@ -283,6 +283,10 @@ docker_dump_db() {
         elif contains "$env_vars", "MARIADB_ROOT_PASSWORD"; then
             docker exec "$1" sh -c 'mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --all-databases --single-transaction' || return $?
 
+        elif contains "$env_vars", "MYSQL_PASSWORD"; then
+            warn "Cannot use super user. May not export all databases."
+            docker exec "$1" sh -c 'mariadb-dump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --all-databases --single-transaction' || return $?
+
         else
             err "mariadb without MARIADB_ROOT_PASSWORD env var is not supported"
             return 1
