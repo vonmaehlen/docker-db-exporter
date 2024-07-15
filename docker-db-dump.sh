@@ -160,7 +160,7 @@ main() {
 }
 
 log() {
-    echo "$@" >/dev/stderr
+    echo "$@" >&2
 }
 
 debug() {
