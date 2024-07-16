@@ -30,6 +30,9 @@ ignored_containers=""
 show_help() {
     cat <<EOF
 Usage: $(basename "$0") [flags]
+
+Create consistent backups for all databases in locally running containers.
+
   -c, --container <name>    Add container to the list of backup-tasks.
   -s, --skip <name>         Do not warn that the container is not backed up.
   -d, --backup-dir <path>   Directory to store backups. Default: ./_db_backups
